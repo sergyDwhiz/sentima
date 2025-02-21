@@ -3,7 +3,11 @@
 ## Project Overview
 This project implements an end-to-end sentiment analysis pipeline, from data collection to production deployment with A/B testing capabilities.
 
-## Setup
+## Setup & Installation
+
+### Prerequisites
+- Python 3.8 or higher
+- pip (Python package installer)
 
 1. Make sure you have Python 3.8+ installed
 2. Run the setup script:
