@@ -3,6 +3,19 @@
 ## Project Overview
 This project implements an end-to-end sentiment analysis pipeline, from data collection to production deployment with A/B testing capabilities.
 
+## Setup
+
+1. Make sure you have Python 3.8+ installed
+2. Run the setup script:
+   ```bash
+   chmod +x setup.sh
+   ./setup.sh
+   ```
+3. Activate the virtual environment:
+   ```bash
+   source .venv/bin/activate
+   ```
+
 ## Tasks Breakdown
 
 ### Task 1: Data Collection ✓
@@ -47,6 +60,13 @@ This project implements an end-to-end sentiment analysis pipeline, from data col
    - Choose 2 to view saved annotations
    - Use 1/2/3 to mark sentiments
    - 'E' to save and exit
+
+## Usage
+
+Run the model training:
+```bash
+python src/model.py
+```
 
 ## Project Structure
 - `src/scrape_news.py`: News scraping implementation
