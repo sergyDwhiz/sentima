@@ -1,5 +1,4 @@
-# Deploy model as a REST API
-
+# Deploy optimized model as a REST API
 from flask import Flask, request, jsonify
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from pathlib import Path
@@ -7,23 +6,28 @@ import torch
 
 app = Flask(__name__)
 
-# Global variables for model and tokenizer
+# Global variables to hold the loaded model and tokenizer
 model = None
 tokenizer = None
 
 def load_model():
-    """Load the trained model and tokenizer"""
+    """
+    Load the optimized model and tokenizer from disk.
+    The optimized model uses 8-bit quantization for faster inference.
+    """
     global model, tokenizer
-    model_path = Path('models/sentiment_model')
+    # Look for the optimized model first
+    model_path = Path('models/optimized_model')
 
     if not model_path.exists():
         raise RuntimeError(
-            "Model not found. Please train the model first using: python src/model.py"
+            "Optimized model not found. Please train the model first using: python src/model.py"
         )
 
+    # Load quantized model and tokenizer
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     model = AutoModelForSequenceClassification.from_pretrained(model_path)
-    model.eval()
+    model.eval()  # Set to evaluation mode for inference
 
 # Home endpoint
 @app.route('/')
