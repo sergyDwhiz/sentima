@@ -3,7 +3,7 @@
 from flask import Flask, request, jsonify
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from pathlib import Path
-import torch
+import torch``
 
 app = Flask(__name__)
 
