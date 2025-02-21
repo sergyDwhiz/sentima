@@ -22,6 +22,14 @@ This project implements an end-to-end sentiment analysis pipeline, from data col
   - Annotation viewer
 - Status: Annotated!
 
+### Task 3: REST API Development 🔄
+- Implementing sentiment analysis model
+- Features:
+  - Using DistilBERT for efficient inference
+  - Training on our annotated headlines
+  - FastAPI deployment planned
+- Current Status: Setting up model training
+
 ## Getting Started
 1. Install dependencies:
    ```bash
@@ -43,6 +51,13 @@ This project implements an end-to-end sentiment analysis pipeline, from data col
 ## Project Structure
 - `src/scrape_news.py`: News scraping implementation
 - `src/annotation.py`: Sentiment annotation tool
+- `src/train_model.py`: Sentiment classification model
 - `data/headlines.json`: Scraped headlines
 - `data/annotated_headlines.json`: Annotated dataset
+
+## Next Steps
+1. Complete model training on annotated data
+2. Implement FastAPI endpoints
+3. Add input validation and error handling
+4. Document API usage
 
