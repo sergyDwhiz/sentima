@@ -39,7 +39,7 @@ This project implements an end-to-end sentiment analysis pipeline, from data col
   - Annotation viewer
 - Status: Annotated!
 
-### Task 3: REST API Development 🔄
+### Task 3: REST API Development ✓
 - Implementing sentiment analysis model
 - Features:
   - Using DistilBERT for efficient inference
@@ -50,7 +50,7 @@ This project implements an end-to-end sentiment analysis pipeline, from data col
 ## Getting Started
 1. Install dependencies:
    ```bash
-   pip install requests beautifulsoup4
+   pip install -r requirements.txt
    ```
 2. Run the news scraper:
    ```bash
@@ -84,4 +84,84 @@ python src/model.py
 2. Implement FastAPI endpoints
 3. Add input validation and error handling
 4. Document API usage
+
+## API Usage
+
+The sentiment analysis API is accessible via HTTP requests on port 3000.
+
+### Endpoints
+
+1. **Health Check**
+```bash
+GET http://localhost:3000/health
+
+# Sample Response
+{
+  "status": "healthy",
+  "model_loaded": true
+}
+```
+
+2. **Sentiment Prediction**
+```bash
+POST http://localhost:3000/predict
+Content-Type: application/json
+
+{
+  "text": "Scientists make breakthrough in renewable energy"
+}
+
+# Sample Response
+{
+  "text": "Scientists make breakthrough in renewable energy",
+  "sentiment": "positive",
+  "confidence": 0.8765
+}
+```
+
+### Example Usage
+
+Using Python requests:
+```python
+import requests
+
+# Predict sentiment
+response = requests.post(
+    "http://localhost:3000/predict",
+    json={"text": "Scientists make breakthrough in renewable energy"}
+)
+print(response.json())
+
+# Check health
+health = requests.get("http://localhost:3000/health")
+print(health.json())
+```
+
+Using curl:
+```bash
+# Health check
+curl http://localhost:3000/health
+
+# Predict sentiment
+curl -X POST http://localhost:3000/predict \
+     -H "Content-Type: application/json" \
+     -d '{"text": "Scientists make breakthrough in renewable energy"}'
+```
+
+### Running the API
+
+1. Train the model first:
+```bash
+python src/model.py
+```
+
+2. Start the API server:
+```bash
+python src/api.py
+```
+
+3. Test the API Simulataneously:
+```bash
+python src/test_api.py
+```
 
