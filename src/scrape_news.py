@@ -1,5 +1,7 @@
 # Get relevant libraries
 import re
+import json
+from pathlib import Path
 import requests
 from bs4 import BeautifulSoup
 
@@ -63,8 +65,15 @@ def main():
     if len(all_headlines) < 200:
         print(f"Found only {len(all_headlines)} headlines. Try adding more source URLs.")
     else:
-        for headline in all_headlines[:200]:
-            print(headline)
+        # Create data directory if it doesn't exist
+        Path('data').mkdir(exist_ok=True)
+
+        # Save headlines to JSON file
+        output_file = Path('data/headlines.json')
+        with open(output_file, 'w', encoding='utf-8') as f:
+            json.dump(all_headlines[:200], f, indent=2, ensure_ascii=False)
+
+        print(f"Successfully saved {len(all_headlines[:200])} headlines to {output_file}")
 
 # Run main function
 if __name__ == '__main__':
