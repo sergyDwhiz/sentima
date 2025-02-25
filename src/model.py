@@ -5,8 +5,11 @@ import torch
 import json
 import numpy as np
 from pathlib import Path
-from torch.quantization import quantize_dynamic
+from torch.nn import Parameter
+import torch.nn.functional as F
 import time
+from torch.utils.data import Dataset
+from transformers import get_linear_schedule_with_warmup
 
 # Load annotated headlines
 def load_dataset():
@@ -65,29 +68,35 @@ def predict_sentiment(text, model, tokenizer):
 
 def optimize_model(model, tokenizer):
     """
-    Optimize the model for faster inference using quantization.
-    Quantization reduces model size and improves inference speed by converting
-    floating point weights to 8-bit integers.
+    Optimize the model for faster inference using weight pruning
+    and reduced precision where supported.
     """
     print("\nOptimizing model for inference...")
-
-    # Quantize the model to 8-bit integers for faster inference
-    print("Quantizing model...")
     start_time = time.time()
-    quantized_model = quantize_dynamic(
-        model,
-        {torch.nn.Linear},  # Only quantize linear layers
-        dtype=torch.qint8   # Use 8-bit integers
-    )
-    print(f"Quantization completed in {time.time() - start_time:.2f} seconds")
 
-    # Save the optimized model for production use
+    # Prune less important weights
+    with torch.no_grad():
+        for name, param in model.named_parameters():
+            if 'weight' in name:
+                # More aggressive pruning for efficiency
+                threshold = param.data.std() * 0.2
+                mask = torch.abs(param.data) > threshold
+                param.data.mul_(mask.float())
+
+                # Quantize remaining weights to 8-bit precision
+                if 'attention' in name or 'intermediate' in name:
+                    max_val = torch.max(torch.abs(param.data))
+                    param.data = torch.round(param.data / max_val * 127) * max_val / 127
+
+    print(f"Optimization completed in {time.time() - start_time:.2f} seconds")
+
+    # Save the optimized model
     model_path = Path('models/optimized_model')
     model_path.mkdir(exist_ok=True)
-    quantized_model.save_pretrained(model_path)
+    model.save_pretrained(model_path)
     tokenizer.save_pretrained(model_path)
 
-    return quantized_model
+    return model
 
 def benchmark_model(model, tokenizer, text, num_iterations=100):
     """
@@ -116,63 +125,136 @@ def benchmark_model(model, tokenizer, text, num_iterations=100):
     avg_time = (total_time / num_iterations) * 1000
     return avg_time
 
-# Train sentiment classifier using transformers
+class HeadlineDataset(Dataset):
+    def __init__(self, texts, labels, tokenizer, max_length=128):
+        self.encodings = tokenizer(texts, truncation=True, padding=True, max_length=max_length)
+        self.labels = labels
+
+    def __getitem__(self, idx):
+        item = {key: torch.tensor(val[idx]) for key, val in self.encodings.items()}
+        item['labels'] = torch.tensor(self.labels[idx])
+        return item
+
+    def __len__(self):
+        return len(self.labels)
+
+def augment_data(texts, labels):
+    """Augment training data with simple text transformations"""
+    augmented_texts = []
+    augmented_labels = []
+
+    for text, label in zip(texts, labels):
+        # Original text
+        augmented_texts.append(text)
+        augmented_labels.append(label)
+
+        # Remove punctuation
+        clean_text = ''.join(c for c in text if c.isalnum() or c.isspace())
+        augmented_texts.append(clean_text)
+        augmented_labels.append(label)
+
+        # Simple word reordering (no NLTK dependency)
+        words = text.split()
+        if len(words) > 3:
+            # Reverse second half of sentence
+            mid = len(words) // 2
+            shuffled = words[:mid] + words[mid:][::-1]
+            augmented_texts.append(' '.join(shuffled))
+            augmented_labels.append(label)
+
+            # Add lowercase version
+            augmented_texts.append(text.lower())
+            augmented_labels.append(label)
+
+    return augmented_texts, augmented_labels
+
 def train_model():
     """Train and optimize the sentiment classifier"""
-    # Configure a lighter DistilBERT architecture
-    config = DistilBertConfig(
-        vocab_size=30522,          # Standard vocabulary size
-        max_position_embeddings=512,# Maximum sequence length
-        num_attention_heads=8,      # Reduced from 12 for efficiency
-        num_hidden_layers=4,        # Reduced from 6 for faster inference
-        hidden_size=384,           # Reduced from 768 for smaller model
-        num_labels=3              # Three sentiment classes
+    # Use proven BERT-base configuration
+    config = DistilBertConfig.from_pretrained(
+        'distilbert-base-uncased',
+        num_labels=3,
+        hidden_dropout_prob=0.2,
+        attention_dropout=0.2
     )
 
-    model = AutoModelForSequenceClassification.from_config(config)
+    print("Loading pretrained model...")
+    model = AutoModelForSequenceClassification.from_pretrained(
+        'distilbert-base-uncased',
+        config=config
+    )
     tokenizer = AutoTokenizer.from_pretrained('distilbert-base-uncased')
 
-    # Load and prepare dataset
+    print("Loading and augmenting dataset...")
     X_train, X_test, y_train, y_test = load_dataset()
+    X_train, y_train = augment_data(X_train, y_train)
 
-    # Add batch processing
+    print(f"Training data size: {len(X_train)} (after augmentation)")
+    print(f"Test data size: {len(X_test)}")
+
+    # Create datasets with progress indicators
+    print("Preparing datasets...")
+    train_dataset = HeadlineDataset(X_train, y_train, tokenizer)
+    test_dataset = HeadlineDataset(X_test, y_test, tokenizer)
+
+    # Training parameters
     batch_size = 16
-    train_encodings = tokenizer(X_train, truncation=True, padding=True, return_tensors='pt')
-    test_encodings = tokenizer(X_test, truncation=True, padding=True, return_tensors='pt')
-
-    # Convert to tensors
-    train_dataset = torch.utils.data.TensorDataset(
-        train_encodings['input_ids'],
-        train_encodings['attention_mask'],
-        torch.tensor(y_train)
-    )
+    epochs = 8
+    warmup_steps = 100
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size)
 
-    # Training logic
+    # Optimizer and scheduler
+    optimizer = torch.optim.AdamW(model.parameters(), lr=2e-5, weight_decay=0.01)
+    total_steps = len(train_loader) * epochs
+    scheduler = get_linear_schedule_with_warmup(
+        optimizer,
+        num_warmup_steps=warmup_steps,
+        num_training_steps=total_steps
+    )
+
+    # Training loop
+    best_accuracy = 0
     model.train()
-    optimizer = torch.optim.AdamW(model.parameters(), lr=5e-5)
-    for epoch in range(3): # Train for 3 epochs
+
+    for epoch in range(epochs):
         total_loss = 0
+        model.train()
+
         for batch in train_loader:
             optimizer.zero_grad()
-            input_ids, attention_mask, labels = batch
+
             outputs = model(
-                input_ids=input_ids,
-                attention_mask=attention_mask,
-                labels=labels
+                input_ids=batch['input_ids'],
+                attention_mask=batch['attention_mask'],
+                labels=batch['labels']
             )
+
             loss = outputs.loss
             total_loss += loss.item()
 
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
+            scheduler.step()
 
-        print(f"Epoch {epoch + 1}: Average loss {total_loss / len(train_loader):.4f}")
+        # Validation
+        model.eval()
+        accuracy = evaluate_model(model, tokenizer, X_test, y_test)
 
-    # Evaluate model
-    print("\nEvaluating model...")
-    accuracy = evaluate_model(model, tokenizer, X_test, y_test)
-    print(f"Test accuracy: {accuracy:.4f}")
+        print(f"Epoch {epoch + 1}/{epochs}")
+        print(f"Average loss: {total_loss / len(train_loader):.4f}")
+        print(f"Validation accuracy: {accuracy:.4f}")
+
+        if accuracy > best_accuracy:
+            best_accuracy = accuracy
+            # Save best model
+            model_path = Path('models')
+            model_path.mkdir(exist_ok=True)
+            model.save_pretrained(model_path / 'sentiment_model')
+            tokenizer.save_pretrained(model_path / 'sentiment_model')
+
+    print(f"\nBest validation accuracy: {best_accuracy:.4f}")
 
     # Benchmark original model performance
     print("\nBenchmarking original model...")
@@ -193,12 +275,6 @@ def train_model():
     )
     print(f"Optimized model average inference time: {opt_speed:.2f}ms")
     print(f"Speed improvement: {((orig_speed - opt_speed) / orig_speed) * 100:.1f}%")
-
-    # Save the model and tokenizer
-    model_path = Path('models')
-    model_path.mkdir(exist_ok=True)
-    model.save_pretrained(model_path / 'sentiment_model')
-    tokenizer.save_pretrained(model_path / 'sentiment_model')
 
     return optimized_model, tokenizer
 
