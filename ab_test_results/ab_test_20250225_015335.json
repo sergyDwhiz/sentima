@@ -1,0 +1,79 @@
+{
+  "results": [
+    {
+      "text": "Scientists make breakthrough in renewable energy",
+      "baseline": {
+        "sentiment": "positive",
+        "confidence": 0.9838069677352905,
+        "latency_ms": 28.563976287841797
+      },
+      "optimized": {
+        "sentiment": "positive",
+        "confidence": 0.9916819930076599,
+        "latency_ms": 22.22275733947754
+      }
+    },
+    {
+      "text": "Stock market crashes amid global concerns",
+      "baseline": {
+        "sentiment": "negative",
+        "confidence": 0.9919338226318359,
+        "latency_ms": 22.705078125
+      },
+      "optimized": {
+        "sentiment": "negative",
+        "confidence": 0.9959663152694702,
+        "latency_ms": 22.606849670410156
+      }
+    },
+    {
+      "text": "New study reveals neutral findings about climate change",
+      "baseline": {
+        "sentiment": "neutral",
+        "confidence": 0.9809595346450806,
+        "latency_ms": 21.396160125732422
+      },
+      "optimized": {
+        "sentiment": "neutral",
+        "confidence": 0.9906951189041138,
+        "latency_ms": 20.912885665893555
+      }
+    },
+    {
+      "text": "Global economy shows strong growth",
+      "baseline": {
+        "sentiment": "neutral",
+        "confidence": 0.9690388441085815,
+        "latency_ms": 22.3848819732666
+      },
+      "optimized": {
+        "sentiment": "neutral",
+        "confidence": 0.9867969751358032,
+        "latency_ms": 22.51434326171875
+      }
+    },
+    {
+      "text": "Natural disaster leaves thousands homeless",
+      "baseline": {
+        "sentiment": "negative",
+        "confidence": 0.9912158250808716,
+        "latency_ms": 21.296977996826172
+      },
+      "optimized": {
+        "sentiment": "negative",
+        "confidence": 0.9956942796707153,
+        "latency_ms": 21.116018295288086
+      }
+    }
+  ],
+  "statistics": {
+    "baseline_mean_latency": 23.2694149017334,
+    "optimized_mean_latency": 21.874570846557617,
+    "latency_improvement": 5.994323712333118,
+    "latency_p_value": 0.34769089048499335,
+    "baseline_mean_confidence": 0.983390998840332,
+    "optimized_mean_confidence": 0.9921669363975525,
+    "confidence_p_value": 0.08676763517265937,
+    "model_agreement_rate": 1.0
+  }
+}
