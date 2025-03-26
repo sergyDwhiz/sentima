@@ -1,7 +1,7 @@
 # Sentiment Analysis Pipeline (Sentima)
 
 ## Project Overview
-This project implements an end-to-end sentiment analysis pipeline, from data collection to production deployment with A/B testing capabilities.
+This project implements an end-to-end news sentiment analysis pipeline, from data collection to production deployment with A/B testing capabilities.
 
 ## Setup & Installation
 
